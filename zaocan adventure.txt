@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Ron - The Final Escape</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #050508;
+            font-family: 'Courier New', Courier, monospace;
+            color: white;
+            user-select: none;
+            touch-action: manipulation;
+        }
+        #game-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        canvas {
+            background: #080810;
+            box-shadow: 0 0 50px rgba(0,0,0,0.9);
+            max-width: 100%;
+            max-height: 100%;
+            image-rendering: pixelated;
+        }
+        .ui-overlay {
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 85%;
+            max-width: 700px;
+            background: rgba(10, 10, 25, 0.98);
+            border: 2px solid #ef4444;
+            padding: 25px;
+            border-radius: 4px;
+            display: none;
+            z-index: 20;
+            box-shadow: 0 0 30px rgba(239, 68, 68, 0.3);
+        }
+        .screen-overlay {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 90%;
+            max-width: 450px;
+            background: #11111a;
+            border: 2px solid #ef4444;
+            padding: 40px;
+            text-align: center;
+            z-index: 100;
+            border-radius: 8px;
+        }
+        input {
+            background: #000;
+            border: 1px solid #ef4444;
+            color: #ef4444;
+            padding: 12px;
+            width: 90%;
+            margin-top: 20px;
+            text-align: center;
+            outline: none;
+            font-size: 1.2rem;
+            letter-spacing: 4px;
+        }
+        #chapter-announcer {
+            position: absolute;
+            top: 40%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 3rem;
+            color: #ef4444;
+            font-weight: bold;
+            opacity: 0;
+            transition: opacity 1s;
+            pointer-events: none;
+            z-index: 30;
+            text-align: center;
+            text-transform: uppercase;
+            letter-spacing: 10px;
+        }
+        .flash-white {
+            position: absolute;
+            inset: 0;
+            background: white;
+            opacity: 0;
+            pointer-events: none;
+            z-index: 1000;
+            transition: opacity 0.5s;
+        }
+        #mobile-controls {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            right: 20px;
+            display: none;
+            justify-content: space-between;
+            z-index: 150;
+        }
+        .touch-btn {
+            width: 70px;
+            height: 70px;
+            background: rgba(239, 68, 68, 0.2);
+            border: 2px solid #ef4444;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-weight: bold;
+            color: white;
+            active: scale(0.9);
+        }
+        .shop-ui {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.95);
+            border: 2px solid #ffd700;
+            padding: 20px;
+            display: none;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            z-index: 200;
+            min-width: 300px;
+        }
+        .shop-item {
+            background: #222;
+            padding: 15px;
+            border: 1px solid #555;
+            cursor: pointer;
+            text-align: center;
+            font-size: 0.8rem;
+            transition: all 0.2s;
+            text-transform: uppercase;
+        }
+        .shop-item:hover { background: #ffd700; color: black; }
+        .shop-item.undo { border-color: #ef4444; color: #ef4444; }
+        .shop-item.undo:hover { background: #ef4444; color: white; }
+        
+        .menu-btn {
+            width: 100%;
+            padding: 15px;
+            margin-bottom: 10px;
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid #ef4444;
+            color: white;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            transition: all 0.3s;
+        }
+        .menu-btn:hover {
+            background: #ef4444;
+            color: black;
+        }
+        .device-toggle {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        .device-toggle button {
+            flex: 1;
+            padding: 10px;
+            font-size: 0.8rem;
+            border: 1px solid #555;
+            background: #111;
+        }
+        .device-toggle button.active {
+            border-color: #ef4444;
+            color: #ef4444;
+        }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <div id="chapter-announcer">CHAPTER 1</div>
+    <div id="flash-screen" class="flash-white"></div>
+    
+    <div id="death-overlay" class="absolute inset-0 bg-black/95 flex items-center justify-center text-red-600 font-bold text-2xl hidden z-50 text-center uppercase tracking-tighter">
+        YOU DIE TRY AGAIN <br><span class="text-sm mt-4 text-gray-500">RESTARTING TIMELINE</span>
+    </div>
+    
+    <canvas id="gameCanvas"></canvas>
+
+    <!-- Initial Interface -->
+    <div id="main-menu" class="screen-overlay">
+        <h1 class="text-5xl font-black text-red-600 mb-8 italic tracking-tighter">ZAOCAN</h1>
+        <button onclick="showPasswordScreen()" class="menu-btn">PLAY</button>
+        <button onclick="showSettings()" class="menu-btn">SETTINGS</button>
+        <p class="text-[8px] mt-4 text-gray-600 uppercase">Version 2.6 - By Ayaat</p>
+    </div>
+
+    <!-- Settings Interface -->
+    <div id="settings-screen" class="screen-overlay hidden">
+        <h2 class="text-2xl font-bold text-red-600 mb-6 uppercase">Settings</h2>
+        <p class="text-xs text-left text-gray-400 mb-2 uppercase">Input Device:</p>
+        <div class="device-toggle">
+            <button id="set-pc" onclick="selectDevice('PC')" class="active">PC / KEYBOARD</button>
+            <button id="set-mobile" onclick="selectDevice('MOBILE')">MOBILE / TOUCH</button>
+        </div>
+        <button onclick="hideSettings()" class="mt-10 text-sm text-gray-400 border-b border-gray-600">BACK TO MENU</button>
+    </div>
+    
+    <!-- Password Interface -->
+    <div id="password-screen" class="screen-overlay hidden">
+        <h2 class="text-2xl font-bold text-red-600 mb-2 uppercase tracking-widest">Security Check</h2>
+        <input type="password" id="game-password-input" placeholder="ENTER KEY" autocomplete="off">
+        <p id="password-error" class="text-xs mt-4 text-red-900 opacity-0">ACCESS DENIED</p>
+        <div class="flex gap-2 mt-4">
+            <button onclick="checkPassword()" class="flex-1 text-xs text-red-600 border border-red-600 py-3 hover:bg-red-600 hover:text-white uppercase font-bold">ACCESS</button>
+            <button onclick="hidePasswordScreen()" class="px-4 text-xs text-gray-500 border border-gray-800 py-3">CANCEL</button>
+        </div>
+    </div>
+
+    <div id="dialogue-box" class="ui-overlay">
+        <div id="speaker-name" class="text-red-500 font-bold mb-1 uppercase text-sm tracking-widest">Mom</div>
+        <div id="dialogue-text" class="text-lg leading-relaxed text-gray-200">...</div>
+        <div id="dialogue-prompt" class="text-[10px] text-right text-red-900 mt-4 tracking-widest animate-pulse">PRESS W TO CONTINUE</div>
+    </div>
+
+    <div id="shop-interface" class="shop-ui">
+        <div class="shop-item" onclick="buyItem('Balut')">BALUT</div>
+        <div class="shop-item" onclick="buyItem('Chicharoni')">CHICHARONI</div>
+        <div class="shop-item" onclick="buyItem('Somosa')">SOMOSA</div>
+        <div class="shop-item" onclick="buyItem('Bread')">BREAD</div>
+        <div class="shop-item" onclick="buyItem('Eggs')">EGGS</div>
+        <div class="shop-item undo" onclick="undoItem()">UNDO</div>
+        <div class="shop-item undo" onclick="resetItems()">RESET</div>
+        <div class="shop-item" onclick="finishShopping()" style="background: #ffd700; color: black; font-weight: bold; grid-column: span 2;">DONE</div>
+    </div>
+
+    <div id="mobile-controls">
+        <div class="flex gap-4">
+            <div class="touch-btn" id="btn-left">←</div>
+            <div class="touch-btn" id="btn-right">→</div>
+        </div>
+        <div class="flex gap-4">
+            <div class="touch-btn" id="btn-action">OK</div>
+            <div class="touch-btn" id="btn-jump">JUMP</div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const dialogueBox = document.getElementById('dialogue-box');
+    const dialogueText = document.getElementById('dialogue-text');
+    const speakerName = document.getElementById('speaker-name');
+    const deathOverlay = document.getElementById('death-overlay');
+    const flashScreen = document.getElementById('flash-screen');
+    const mainMenu = document.getElementById('main-menu');
+    const settingsScreen = document.getElementById('settings-screen');
+    const passwordScreen = document.getElementById('password-screen');
+    const passwordInput = document.getElementById('game-password-input');
+    const announcer = document.getElementById('chapter-announcer');
+    const mobileHUD = document.getElementById('mobile-controls');
+    const dialoguePrompt = document.getElementById('dialogue-prompt');
+    const shopUI = document.getElementById('shop-interface');
+
+    canvas.width = 1000;
+    canvas.height = 500;
+
+    let deviceType = 'PC';
+    let gameState = 'MAIN_MENU'; 
+    let dialogueIndex = 0;
+    let cameraX = 0;
+    let autoMoveSpeed = 4.8;
+    let briyaniLevel = 0;
+    let polaoProgress = 0;
+    let currentDialogueType = '';
+    let mazeCells = [];
+    let batSwingProgress = 0;
+
+    let inventory = { Balut: 0, Chicharoni: 0, Somosa: 0, Bread: 0, Eggs: 0 };
+    let buyHistory = []; // To track the order of items bought for Undo
+
+    let player = {
+        x: 150, y: 390, width: 30, height: 55,
+        velY: 0, speed: 5.5, jumpForce: -15,
+        grounded: false, jumpsLeft: 2, rotation: 0
+    };
+
+    let enemies = [], obstacles = [], rain = [], environment = [], keys = {};
+
+    const dialogues = {
+        C1_START: [
+            { name: "Mom", text: "Ron... the shadows are thickening outside." },
+            { name: "Mom", text: "Go to the shop. Don't look at the trees. Come straight back." }
+        ],
+        C1_SHOP: [
+            { name: "Shopkeeper", text: "You're brave coming out tonight, Ron. Take these and hurry." }
+        ],
+        C2_RETURN: [
+            { name: "Mom", text: "Sit. Eat the Briyani before it gets cold." },
+            { name: "System", text: "[HOLD F TO EAT BRIYANI]" }
+        ],
+        C3_ATTACK: [
+            { name: "Mom", text: "They're here! RUN TO THE OLD HOSPITAL! Don't look back!" }
+        ],
+        HOSPITAL_WAKE: [
+            { name: "Ron", text: "Everything went white... That bat... it hurt." },
+            { name: "Ron", text: "Wait... the door is open. I have to get out of this maze NOW!" }
+        ],
+        MAZE_START: [ { name: "Ron", text: "ESCAPE!" } ],
+        GRANDMA_END: [
+            { name: "Ron", text: "Grandma! I'm here! I escaped the hospital!" },
+            { name: "Grandma", text: "The sun is rising, child. You are safe now." }
+        ],
+        ERRAND_START: [
+            { name: "Grandma", text: "Hey! Since you're awake, go and buy some things for lunch." },
+            { name: "Grandma", text: "Go buy 1 Balut, 5 Chicharoni, and 9 Somosa. Don't get anything else!" }
+        ],
+        POLAO_TIME: [
+            { name: "Grandma", text: "Perfect! You got everything. Now wait while I make Polao." },
+            { name: "System", text: "[HOLD F TO COOK POLAO]" }
+        ],
+        FINAL_FEAST: [
+            { name: "Grandma", text: "The Polao is ready. Let's eat and forget that long night." },
+            { name: "Ron", text: "Finally... peace." }
+        ]
+    };
+
+    function showSettings() { mainMenu.classList.add('hidden'); settingsScreen.classList.remove('hidden'); }
+    function hideSettings() { settingsScreen.classList.add('hidden'); mainMenu.classList.remove('hidden'); }
+    function showPasswordScreen() { mainMenu.classList.add('hidden'); passwordScreen.classList.remove('hidden'); }
+    function hidePasswordScreen() { passwordScreen.classList.add('hidden'); mainMenu.classList.remove('hidden'); }
+
+    function selectDevice(type) {
+        deviceType = type;
+        document.getElementById('set-pc').className = (type === 'PC' ? 'active' : '');
+        document.getElementById('set-mobile').className = (type === 'MOBILE' ? 'active' : '');
+        if (deviceType === 'MOBILE') {
+            mobileHUD.style.display = 'flex';
+            dialoguePrompt.innerText = "TAP OK TO CONTINUE";
+        } else {
+            mobileHUD.style.display = 'none';
+            dialoguePrompt.innerText = "PRESS W TO CONTINUE";
+        }
+    }
+
+    function checkPassword() {
+        if (passwordInput.value === 'ayaatboombaby') {
+            passwordScreen.style.display = 'none';
+            initChapterScenery();
+            gameState = 'C1_START';
+            announce("CHAPTER 1: THE SPICE");
+            showDialogue('C1_START');
+        } else {
+            document.getElementById('password-error').style.opacity = '1';
+        }
+    }
+
+    function setupTouch(id, keycode) {
+        const btn = document.getElementById(id);
+        btn.addEventListener('touchstart', (e) => { e.preventDefault(); keys[keycode] = true; handleInteractionForMobile(keycode); });
+        btn.addEventListener('touchend', (e) => { e.preventDefault(); keys[keycode] = false; });
+    }
+
+    setupTouch('btn-left', 'ArrowLeft');
+    setupTouch('btn-right', 'ArrowRight');
+    setupTouch('btn-jump', 'Space');
+    setupTouch('btn-action', 'KeyW');
+
+    function handleInteractionForMobile(keycode) {
+        if (keycode === 'Space') handleInteraction('JUMP');
+        if (keycode === 'KeyW') handleInteraction('DIALOGUE');
+    }
+
+    window.addEventListener('keydown', e => { 
+        keys[e.code] = true;
+        if (e.code === 'Space' || e.code === 'ArrowUp') handleInteraction('JUMP');
+        if (e.code === 'KeyW') handleInteraction('DIALOGUE');
+    });
+    window.addEventListener('keyup', e => keys[e.code] = false);
+
+    function initChapterScenery() {
+        environment = [];
+        for(let i=0; i<150; i++) {
+            environment.push({
+                x: i * 400 + (Math.random()*200),
+                type: Math.random() > 0.6 ? 'tree' : 'lamp',
+                scale: 0.8 + Math.random() * 0.5
+            });
+        }
+    }
+
+    function announce(txt) {
+        announcer.innerText = txt; announcer.style.opacity = 1;
+        setTimeout(() => announcer.style.opacity = 0, 3000);
+    }
+
+    function showDialogue(type) {
+        currentDialogueType = type;
+        dialogueBox.style.display = 'block';
+        const d = dialogues[type][dialogueIndex];
+        speakerName.innerText = d.name;
+        dialogueText.innerText = d.text;
+    }
+
+    function hideDialogue() { dialogueBox.style.display = 'none'; dialogueIndex = 0; }
+
+    function triggerTeleportToMaze() {
+        flashScreen.style.opacity = 1;
+        setTimeout(() => {
+            gameState = 'HOSPITAL_MAZE'; announce("ESCAPE THE MAZE");
+            showDialogue('MAZE_START'); setupMaze(); flashScreen.style.opacity = 0;
+        }, 500);
+    }
+
+    // Shop Functions
+    function buyItem(item) {
+        inventory[item]++;
+        buyHistory.push(item);
+    }
+
+    function undoItem() {
+        if (buyHistory.length > 0) {
+            const lastItem = buyHistory.pop();
+            inventory[lastItem]--;
+        }
+    }
+
+    function resetItems() {
+        inventory = { Balut: 0, Chicharoni: 0, Somosa: 0, Bread: 0, Eggs: 0 };
+        buyHistory = [];
+    }
+
+    function finishShopping() {
+        shopUI.style.display = 'none';
+        if (inventory.Balut === 1 && inventory.Chicharoni === 5 && inventory.Somosa === 9 && inventory.Bread === 0 && inventory.Eggs === 0) {
+            gameState = 'ERRAND_RETURN';
+        } else {
+            die();
+        }
+    }
+
+    function handleInteraction(type) {
+        if (dialogueBox.style.display === 'block') {
+            if (type === 'DIALOGUE') {
+                dialogueIndex++;
+                if (dialogueIndex < dialogues[currentDialogueType].length) {
+                    showDialogue(currentDialogueType);
+                } else {
+                    hideDialogue();
+                    postDialogueState();
+                }
+            }
+        } else {
+            if (type === 'JUMP') {
+                if (gameState === 'C1_WALK_TO_SHOP' && Math.abs(player.x - 3100) < 100) {
+                    gameState = 'C1_AT_SHOP'; showDialogue('C1_SHOP'); return;
+                }
+                if (gameState === 'ERRAND_WALK_TO_SHOP' && Math.abs(player.x - 3100) < 100) {
+                    shopUI.style.display = 'grid'; return;
+                }
+                if (player.jumpsLeft > 0) {
+                    const force = gameState === 'HOSPITAL_MAZE' ? -18 : -15;
+                    player.velY = force; player.jumpsLeft--; player.grounded = false;
+                }
+            }
+        }
+    }
+
+    function postDialogueState() {
+        if (gameState === 'C1_START') gameState = 'C1_WALK_TO_SHOP';
+        else if (gameState === 'C1_AT_SHOP') { gameState = 'C1_RUN_HOME'; setupChase(2500); }
+        else if (gameState === 'C2_ARRIVED') { gameState = 'C2_EATING'; }
+        else if (gameState === 'C3_TRAGEDY') { gameState = 'C4_RUN_TO_HOSPITAL'; setupChase(4500); }
+        else if (gameState === 'HOSPITAL_WAKE_SCENE') { triggerTeleportToMaze(); }
+        else if (gameState === 'HOSPITAL_MAZE_OUT') { gameState = 'FINAL_RUN_TO_GRANDMA'; setupChase(3500); announce("THE FINAL MILE"); }
+        else if (gameState === 'VICTORY_TALK') { gameState = 'SUNRISE'; postDialogueState(); }
+        else if (gameState === 'SUNRISE') { gameState = 'ERRAND_START'; showDialogue('ERRAND_START'); }
+        else if (gameState === 'ERRAND_START') { gameState = 'ERRAND_WALK_TO_SHOP'; announce("CHAPTER 2: THE ERRAND"); }
+        else if (gameState === 'ERRAND_RETURN') { gameState = 'COOKING_TIME'; showDialogue('POLAO_TIME'); }
+        else if (gameState === 'POLAO_FINISHED') { gameState = 'ENDING'; showDialogue('FINAL_FEAST'); }
+    }
+
+    function setupChase(dist) {
+        player.targetX = player.x + dist;
+        obstacles = [];
+        for(let i=0; i < dist/400; i++) {
+            obstacles.push({
+                x: player.x + 800 + (i * 480) + Math.random()*150,
+                y: 350 + Math.random()*50, w: 40, h: 40 + Math.random()*60
+            });
+        }
+        enemies = [{ x: player.x - 350, w: 40, h: 60 }];
+    }
+
+    function setupMaze() {
+        mazeCells = [];
+        const totalDist = 4.8 * 60 * 19;
+        const blockSpacing = 380;
+        const numBlocks = Math.floor(totalDist / blockSpacing);
+        for(let i=0; i<numBlocks; i++) {
+            const isTopWall = Math.random() > 0.5;
+            const yPos = isTopWall ? 0 : 200 + (Math.random() * 100); 
+            const height = isTopWall ? 150 + Math.random() * 100 : 40;
+            mazeCells.push({ x: player.x + 800 + (i * blockSpacing), y: yPos, w: 180 + (Math.random() * 120), h: height });
+        }
+        player.targetX = player.x + totalDist;
+        enemies = [{ x: player.x - 450, w: 50, h: 80 }];
+    }
+
+    function update() {
+        if (gameState === 'MAIN_MENU' || gameState === 'PASSWORD_CHECK') return;
+        if (dialogueBox.style.display === 'block') return;
+
+        if (gameState !== 'ENDING' && gameState !== 'COOKING_TIME' && gameState !== 'C2_EATING' && gameState !== 'DEAD') {
+            const gravity = gameState === 'HOSPITAL_MAZE' ? 1.0 : 0.85;
+            player.velY += gravity; player.y += player.velY;
+            if (player.y > 390) { player.y = 390; player.velY = 0; player.grounded = true; player.jumpsLeft = 2; player.rotation = 0; }
+        }
+
+        if (gameState === 'C1_WALK_TO_SHOP' || gameState === 'ERRAND_WALK_TO_SHOP' || gameState === 'ERRAND_RETURN') {
+            if (keys['ArrowRight']) player.x += player.speed;
+            if (keys['ArrowLeft']) player.x -= player.speed;
+            cameraX = player.x - 200;
+            if (gameState === 'ERRAND_RETURN' && player.x < 200) postDialogueState();
+        }
+
+        if (gameState.includes('RUN') || gameState === 'HOSPITAL_MAZE') {
+            player.x += autoMoveSpeed; cameraX = player.x - 200;
+            enemies.forEach(en => {
+                en.x += autoMoveSpeed * (gameState === 'HOSPITAL_MAZE' ? 1.018 : 0.97);
+                if (en.x + en.w > player.x) die();
+            });
+            const currentObstacles = (gameState === 'HOSPITAL_MAZE') ? mazeCells : obstacles;
+            currentObstacles.forEach(obs => {
+                const paddingX = 10; const paddingY = 10;
+                if (player.x + paddingX < obs.x + obs.w && player.x + player.width - paddingX > obs.x && 
+                    player.y + paddingY < obs.y + obs.h && player.y + player.height - paddingY > obs.y) die();
+            });
+            if (player.x > player.targetX) {
+                if (gameState === 'C1_RUN_HOME') { gameState = 'C2_ARRIVED'; player.x = 100; cameraX = 0; showDialogue('C2_RETURN'); }
+                else if (gameState === 'C4_RUN_TO_HOSPITAL') { gameState = 'HOSPITAL_AMBUSH'; announce("THE OLD HOSPITAL"); }
+                else if (gameState === 'HOSPITAL_MAZE') { gameState = 'HOSPITAL_MAZE_OUT'; postDialogueState(); }
+                else if (gameState === 'FINAL_RUN_TO_GRANDMA') { gameState = 'VICTORY_TALK'; player.x = 250; cameraX = 0; showDialogue('GRANDMA_END'); }
+            }
+            player.rotation += 0.12;
+        }
+
+        if (gameState === 'HOSPITAL_AMBUSH') {
+            if (player.x < player.targetX + 400) player.x += 3;
+            cameraX = player.x - 200;
+            batSwingProgress += 0.05;
+            if (batSwingProgress >= 1.5) {
+                flashScreen.style.opacity = 1;
+                setTimeout(() => { gameState = 'HOSPITAL_WAKE_SCENE'; showDialogue('HOSPITAL_WAKE'); flashScreen.style.opacity = 0; }, 500);
+            }
+        }
+
+        if ((gameState === 'C2_EATING' || gameState === 'COOKING_TIME') && (keys['KeyF'] || (deviceType === 'MOBILE' && keys['KeyW']))) {
+            if (gameState === 'C2_EATING') { briyaniLevel += 0.8; if (briyaniLevel >= 100) { gameState = 'C3_TRAGEDY'; showDialogue('C3_ATTACK'); } }
+            else { polaoProgress += 0.8; if (polaoProgress >= 100) { gameState = 'POLAO_FINISHED'; postDialogueState(); } }
+        }
+
+        if (gameState.includes('C1') || gameState.includes('C3') || gameState.includes('HOSPITAL')) {
+            for(let i=0; i<3; i++) rain.push({ x: Math.random()*canvas.width + cameraX, y: -20, s: 12+Math.random()*8 });
+            if (rain.length > 200) rain.shift();
+            rain.forEach(p => { p.y += p.s; if (p.y > canvas.height) p.y = -20; });
+        }
+    }
+
+    function die() {
+        if (gameState === 'DEAD') return; 
+        gameState = 'DEAD'; deathOverlay.classList.remove('hidden');
+        setTimeout(() => location.reload(), 2000);
+    }
+
+    function drawHouse(x, y, scale = 1) {
+        ctx.fillStyle = '#2d2d44'; ctx.fillRect(x, y - 150 * scale, 200 * scale, 150 * scale);
+        ctx.fillStyle = '#1a1a2e'; ctx.beginPath(); ctx.moveTo(x - 20, y - 150 * scale); ctx.lineTo(x + 100 * scale, y - 220 * scale); ctx.lineTo(x + 220 * scale, y - 150 * scale); ctx.fill();
+        ctx.fillStyle = '#f1c40f'; ctx.fillRect(x + 40 * scale, y - 100 * scale, 40 * scale, 40 * scale);
+        ctx.fillStyle = '#4a2c2c'; ctx.fillRect(x + 120 * scale, y - 80 * scale, 40 * scale, 80 * scale);
+    }
+
+    function drawHuman(x, y, color, label, rotation = 0) {
+        ctx.save(); ctx.translate(x + 15, y - 27); ctx.rotate(rotation);
+        ctx.fillStyle = color; ctx.fillRect(-15, -27, 30, 55);
+        ctx.fillStyle = '#ffdbac'; ctx.fillRect(-10, -47, 20, 20);
+        ctx.fillStyle = 'black'; ctx.fillRect(-7, -40, 4, 4); ctx.fillRect(3, -40, 4, 4);
+        ctx.restore();
+        ctx.fillStyle = 'white'; ctx.font = '10px Courier'; ctx.textAlign = 'center'; ctx.fillText(label, x + 15, y - 85);
+    }
+
+    function draw() {
+        let bgColor = '#0a0a0f';
+        if (gameState.includes('ERRAND') || gameState === 'SUNRISE' || gameState === 'ENDING' || gameState === 'COOKING_TIME' || gameState === 'VICTORY_TALK' || gameState === 'POLAO_FINISHED') bgColor = '#ff9e7f';
+        else if (gameState.includes('HOSPITAL') || gameState === 'HOSPITAL_MAZE') bgColor = '#1a0a20';
+        ctx.fillStyle = bgColor; ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        if (gameState === 'MAIN_MENU' || gameState === 'PASSWORD_CHECK') return;
+
+        ctx.save(); ctx.translate(-cameraX, 0);
+        ctx.fillStyle = (gameState.includes('ERRAND') || gameState === 'SUNRISE' || gameState === 'COOKING_TIME' || gameState === 'VICTORY_TALK') ? '#3e7a3e' : '#0d0d14';
+        ctx.fillRect(cameraX - 500, 445, canvas.width + 1000, 100);
+
+        environment.forEach(e => {
+            if (e.x > cameraX - 200 && e.x < cameraX + 1100) {
+                if (e.type === 'tree') {
+                    ctx.fillStyle = (gameState.includes('ERRAND')) ? '#1a431a' : '#0f0f18'; ctx.fillRect(e.x, 300, 25 * e.scale, 150);
+                    ctx.fillStyle = (gameState.includes('ERRAND')) ? '#2d5a27' : '#080810'; ctx.beginPath(); ctx.arc(e.x + 12, 300, 40*e.scale, 0, Math.PI*2); ctx.fill();
+                }
+            }
+        });
+
+        if (cameraX < 1500) {
+            drawHouse(50, 445);
+            if (!gameState.includes('HOSPITAL') && gameState !== 'HOSPITAL_MAZE') drawHuman(200, 445, '#27ae60', "GRANDMA");
+            if (gameState === 'C2_EATING' || gameState === 'COOKING_TIME' || (gameState === 'VICTORY_TALK' && player.x < 1500)) {
+                ctx.fillStyle = '#8e44ad'; ctx.beginPath(); ctx.arc(150, 430, 20, 0, Math.PI, false); ctx.fill();
+                ctx.fillStyle = '#f1c40f'; ctx.fillRect(135, 415, 30, 10);
+            }
+        }
+
+        if (cameraX > 2000 && cameraX < 5000) {
+            ctx.fillStyle = '#34495e'; ctx.fillRect(3000, 145, 300, 300);
+            ctx.fillStyle = '#e67e22'; ctx.fillRect(3000, 145, 300, 40);
+            ctx.fillStyle = 'white'; ctx.font = '16px Courier'; ctx.textAlign = 'center'; ctx.fillText("VALLEY SPICES", 3150, 170);
+            drawHuman(3100, 445, '#e74c3c', "SHOPKEEPER");
+        }
+
+        if (gameState === 'HOSPITAL_AMBUSH' || gameState === 'HOSPITAL_WAKE_SCENE') {
+            ctx.fillStyle = '#111'; ctx.fillRect(player.x + 400, 100, 400, 345);
+            ctx.fillStyle = '#444'; ctx.fillRect(player.x + 400, 100, 400, 20);
+            ctx.fillStyle = 'purple'; ctx.fillRect(player.x + 450, 200 - (batSwingProgress * 50), 30, 100);
+        }
+
+        obstacles.forEach(o => { ctx.fillStyle = '#c0392b'; ctx.fillRect(o.x, o.y, o.w, o.h); });
+        mazeCells.forEach(m => { ctx.fillStyle = '#ef4444'; ctx.fillRect(m.x, m.y, m.w, m.h); ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.strokeRect(m.x, m.y, m.w, m.h); });
+        enemies.forEach(e => { ctx.fillStyle = '#ff0000'; ctx.fillRect(e.x, e.y, e.w, e.h); ctx.fillStyle = 'white'; ctx.fillRect(e.x+10, e.y+10, 6, 6); ctx.fillRect(e.x+25, e.y+10, 6, 6); });
+        if (gameState !== 'DEAD') drawHuman(player.x, player.y + player.height, '#3498db', "RON", player.rotation);
+        ctx.fillStyle = 'rgba(200, 200, 255, 0.5)'; rain.forEach(r => ctx.fillRect(r.x, r.y, 2, 10));
+        ctx.restore();
+
+        if (gameState === 'C2_EATING' || gameState === 'COOKING_TIME') {
+            ctx.fillStyle = 'white'; ctx.textAlign = 'center'; ctx.font = '20px Courier'; ctx.fillText(gameState === 'C2_EATING' ? "EATING BRIYANI" : "COOKING POLAO", canvas.width/2, 120);
+            ctx.fillText(deviceType === 'MOBILE' ? "TAP OK REPEATEDLY" : "HOLD F", canvas.width/2, 150);
+            let prog = (gameState === 'C2_EATING') ? briyaniLevel : polaoProgress;
+            ctx.fillStyle = '#222'; ctx.fillRect(canvas.width/2 - 100, 360, 200, 20);
+            ctx.fillStyle = '#ef4444'; ctx.fillRect(canvas.width/2 - 100, 360, prog * 2, 20);
+        }
+
+        if (gameState.includes('ERRAND')) {
+            ctx.fillStyle = 'white'; ctx.font = '12px Courier'; ctx.textAlign = 'left';
+            ctx.fillText(`TARGET: 1 Balut, 5 Chicharoni, 9 Somosa`, 20, 30);
+            ctx.fillText(`GOT: ${inventory.Balut} Balut, ${inventory.Chicharoni} Chicharoni, ${inventory.Somosa} Somosa`, 20, 50);
+            ctx.fillText(`WRONG: ${inventory.Bread} Bread, ${inventory.Eggs} Eggs`, 20, 70);
+            if (gameState === 'ERRAND_WALK_TO_SHOP') {
+                const dist = Math.floor((3100 - player.x)/10); ctx.fillStyle = '#ffd700'; ctx.textAlign = 'center'; ctx.fillText(`VALLEY SPICES: ${dist > 0 ? dist : 0}m`, canvas.width/2, 30);
+            }
+        }
+
+        if (gameState === 'ENDING') {
+            ctx.fillStyle = 'rgba(0,0,0,0.8)'; ctx.fillRect(0,0,canvas.width,canvas.height); ctx.fillStyle = '#ffd700'; ctx.font = '40px Courier'; ctx.textAlign = 'center'; ctx.fillText("THE END", canvas.width/2, canvas.height/2 - 20); ctx.font = '15px Courier'; ctx.fillText("Created by Ayaat", canvas.width/2, canvas.height/2 + 30);
+        }
+    }
+
+    function loop() { update(); draw(); requestAnimationFrame(loop); }
+    loop();
+</script>
+</body>
+</html>
